@@ -38,6 +38,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let db = null;
 
+  // --- Local Server API Integration ---
+  const API_BASE = 'http://localhost:8082';
+  let localFiles = {
+    plots_and_settings: [],
+    book_analyses: [],
+    manuscripts: []
+  };
+
+  async function scanLocalFiles() {
+    try {
+      const response = await fetch(`${API_BASE}/api/list-files`);
+      if (!response.ok) throw new Error('API request failed');
+      localFiles = await response.json();
+      
+      // Update UI elements from local files
+      renderLocalFilesHistory();
+      renderChatContextSelectors();
+      renderManuscriptsDropdown();
+    } catch (e) {
+      console.warn('Local API server offline, running in mock/offline mode:', e.message);
+    }
+  }
+
+  async function readLocalFile(relativePath) {
+    const response = await fetch(`${API_BASE}/api/read-file?path=${encodeURIComponent(relativePath)}`);
+    if (!response.ok) throw new Error('Failed to read local file');
+    return await response.text();
+  }
+
+  async function saveLocalFile(relativePath, content) {
+    const response = await fetch(`${API_BASE}/api/save-file`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ path: relativePath, content: content })
+    });
+    if (!response.ok) throw new Error('Failed to save local file');
+    return await response.json();
+  }
+
   // Initialize and load database from LocalStorage
   function loadDatabase() {
     const data = localStorage.getItem('novel_editor_db');
@@ -136,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Sync UI with DB
     updateUI();
     fetchTodayDrill();
+
+    // Scan local files via PowerShell API
+    scanLocalFiles();
   }
 
   // Update UI components based on database state
@@ -225,6 +269,120 @@ document.addEventListener('DOMContentLoaded', () => {
         <span class="sync-date">${formattedDate} 保存</span>
       `;
       syncNotesList.appendChild(li);
+    });
+  }
+
+  // Render local files inside "Plots_and_Settings" and "Book_Analyses"
+  function renderLocalFilesHistory() {
+    syncNotesList.innerHTML = '';
+    
+    const allNotes = [];
+    localFiles.plots_and_settings.forEach(f => {
+      allNotes.push({ name: f.name, path: f.relativePath, category: 'setting', updated: f.updated });
+    });
+    localFiles.book_analyses.forEach(f => {
+      allNotes.push({ name: f.name, path: f.relativePath, category: 'analysis', updated: f.updated });
+    });
+
+    if (allNotes.length === 0) {
+      syncNotesList.innerHTML = '<li class="empty-sync-msg">ローカルに保存された設定や分析ファイルはありません。</li>';
+      return;
+    }
+
+    // Sort by updated time descending
+    allNotes.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+
+    allNotes.slice(0, 10).forEach(note => {
+      const li = document.createElement('li');
+      let emoji = '📝';
+      if (note.category === 'analysis') emoji = '📚';
+      else if (note.name.includes('キャラクター')) emoji = '👥';
+      else if (note.name.includes('設定')) emoji = '🗺️';
+      else if (note.name.includes('プロット')) emoji = '🎬';
+
+      li.innerHTML = `
+        <span class="file-link" data-path="${note.path}" style="cursor: pointer; color: #c084fc; text-decoration: underline;">
+          ${emoji} <b>${note.name}</b>
+        </span>
+        <span class="sync-date">${note.updated}</span>
+      `;
+
+      // Allow clicking history to load into preview
+      li.querySelector('.file-link').addEventListener('click', async () => {
+        try {
+          const content = await readLocalFile(note.path);
+          notePreviewArea.textContent = content;
+          alert(`「${note.name}」をローカルから読み込みました！`);
+        } catch (err) {
+          alert('ファイルの読み込みに失敗しました。');
+        }
+      });
+
+      syncNotesList.appendChild(li);
+    });
+  }
+
+  // Render context selector checkboxes inside Chat sidebar
+  function renderChatContextSelectors() {
+    const plotsContainer = document.getElementById('chat-plots-checkbox-list');
+    const analysesContainer = document.getElementById('chat-analyses-checkbox-list');
+
+    if (!plotsContainer || !analysesContainer) return;
+
+    // Plots and settings
+    plotsContainer.innerHTML = '';
+    if (localFiles.plots_and_settings.length === 0) {
+      plotsContainer.innerHTML = '<span class="empty-list-text">資料がありません</span>';
+    } else {
+      localFiles.plots_and_settings.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'context-checkbox-item';
+        item.innerHTML = `
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin: 3px 0; cursor: pointer;">
+            <input type="checkbox" class="chat-context-checkbox" data-path="${f.relativePath}">
+            <span class="checkbox-file-name" title="${f.name}">${f.name.replace(/_キャラクター設定|_設定資料|_プロット構成/g, '')}</span>
+          </label>
+        `;
+        plotsContainer.appendChild(item);
+      });
+    }
+
+    // Book analyses
+    analysesContainer.innerHTML = '';
+    if (localFiles.book_analyses.length === 0) {
+      analysesContainer.innerHTML = '<span class="empty-list-text">分析メモがありません</span>';
+    } else {
+      localFiles.book_analyses.forEach(f => {
+        const item = document.createElement('div');
+        item.className = 'context-checkbox-item';
+        item.innerHTML = `
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin: 3px 0; cursor: pointer;">
+            <input type="checkbox" class="chat-context-checkbox" data-path="${f.relativePath}">
+            <span class="checkbox-file-name" title="${f.name}">${f.name.replace(/_構造分析/g, '')}</span>
+          </label>
+        `;
+        analysesContainer.appendChild(item);
+      });
+    }
+  }
+
+  // Populate manuscripts dropdown inside proofreading tool
+  function renderManuscriptsDropdown() {
+    const dropdown = document.getElementById('select-manuscript-file');
+    if (!dropdown) return;
+    
+    // Keep initial option
+    dropdown.innerHTML = '<option value="">-- ファイルを選択 --</option>';
+
+    if (localFiles.manuscripts.length === 0) {
+      return;
+    }
+
+    localFiles.manuscripts.forEach(f => {
+      const opt = document.createElement('option');
+      opt.value = f.relativePath;
+      opt.textContent = `${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+      dropdown.appendChild(opt);
     });
   }
 
@@ -443,116 +601,154 @@ JSON形式:
       let reviewText = "";
 
       try {
-        const systemPrompt = `あなたは小説執筆コーチです。初心者が取り組んだドリル「お題：${db.drills.currentDrill?.prompt}」に対する回答「${answerText}」を読み、温かく、かつプロの視点から良かった部分と、さらに良くなるアドバイスを2〜3文でフィードバックしてください。否定的な表現は一切使わず、モチベーションを極限まで高める言葉をかけてください。`;
-        reviewText = await callGemini(answerText, systemPrompt);
-      } catch (err) {
-        reviewText = `素晴らしいですね！お題に対して的確に応えているだけでなく、言葉選びのセンスがキラリと光っています。特に「${answerText.substring(0, Math.min(25, answerText.length))}...」の部分の表現に瑞々しさがあり、その場の空気感がしっかりと想像できました。この表現の引き出しをぜひご自身の小説にも活かしてください！`;
-      }
-
-      const todayStr = new Date().toISOString().split('T')[0];
-
-      db.drills.completedToday = true;
-      db.drills.history.push({
-        date: todayStr,
-        drillTitle: db.drills.currentDrill?.title,
-        userText: answerText,
-        feedback: reviewText,
-        xpGained: 50
-      });
-
-      // Daily habit status log
-      if (!db.habitLogs[todayStr]) {
-        db.habitLogs[todayStr] = { words: 0, completedDrill: true, xpGained: 0 };
-      }
-      db.habitLogs[todayStr].completedDrill = true;
-      db.habitLogs[todayStr].words += answerText.length;
-      db.habitLogs[todayStr].xpGained += 50;
-      db.stats.totalWordsWritten += answerText.length;
-
-      handleStreakUpdate(todayStr);
-      const lvUpInfo = addExperiencePoints(50); // +50 XP for daily drill
-
-      showDrillFeedback(reviewText);
-
-      if (lvUpInfo.leveledUp) {
-        alert(`🎉 レベルアップしました！現在のレベル: Lv. ${lvUpInfo.level}`);
-      }
-    });
-
-    btnNextDrill.addEventListener('click', () => {
-      // Allow regenerating to test multiple times (for beginner play)
-      db.drills.lastDrillDate = "";
-      fetchTodayDrill();
-    });
-  }
-
-  function showDrillFeedback(feedbackText) {
-    drillInputContainer.classList.add('hidden');
-    drillFeedbackContainer.classList.remove('hidden');
-    drillFeedbackText.textContent = feedbackText;
-  }
-
-  function resetDrillInput() {
-    drillInputContainer.classList.remove('hidden');
-    drillFeedbackContainer.classList.add('hidden');
-    drillResponseText.value = '';
-    btnSubmitDrill.textContent = '回答を提出する (+50 XP)';
-    btnSubmitDrill.disabled = false;
-  }
-
-  // --- NotebookLM Markdown note generator ---
+        const systemPrompt = `あなたは小説執筆コーチです。初心者が取り組んだドリル「お題：$  // --- NotebookLM Markdown note generator ---
   function setupNotebookTemplates() {
+    const analysisForm = document.getElementById('analysis-template-form');
+    const btnRunAnalysis = document.getElementById('btn-run-analysis-structure');
+    const btnSaveNoteLocal = document.getElementById('btn-save-note-local');
+
     templateSelect.addEventListener('change', () => {
       const value = templateSelect.value;
+      analysisForm.classList.add('hidden');
       characterForm.classList.add('hidden');
       worldForm.classList.add('hidden');
       plotForm.classList.add('hidden');
 
+      if (value === 'analysis') analysisForm.classList.remove('hidden');
       if (value === 'character') characterForm.classList.remove('hidden');
       if (value === 'world') worldForm.classList.remove('hidden');
       if (value === 'plot') plotForm.classList.remove('hidden');
     });
 
-    btnPreviewNote.addEventListener('click', () => {
-      const { title, markdown } = generateNoteMarkdown();
-      notePreviewArea.textContent = markdown || 'プレビューを表示するにはフォームに入力してください。';
-    });
+    // AI Structure Analysis Runner
+    btnRunAnalysis.addEventListener('click', async () => {
+      const workTitle = document.getElementById('analysis-work-title').value.trim();
+      const rawNotes = document.getElementById('analysis-raw-notes').value.trim();
 
-    btnSyncNote.addEventListener('click', () => {
-      const { title, markdown, category } = generateNoteMarkdown();
-      if (!title || !markdown) {
-        alert('タイトルと必要な項目を入力してください。');
+      if (!workTitle || !rawNotes) {
+        alert('作品名と分析メモを入力してください！');
         return;
       }
 
-      // 1. Download file directly as local sync method
-      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8;' });
-      const link = document.createElement("a");
-      const url = URL.createObjectURL(blob);
-      link.setAttribute("href", url);
-      link.setAttribute("download", `${title}.md`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      btnRunAnalysis.textContent = 'AIで構造分析を整理中... 🖋️';
+      btnRunAnalysis.disabled = true;
 
-      // 2. Add to Local Notes Database List
-      const newNote = {
-        id: Date.now().toString(),
-        title: title,
-        category: category || 'note',
-        syncDate: new Date().toISOString()
-      };
-      
-      db.notes.push(newNote);
-      saveDatabase();
-      updateUI();
+      try {
+        const systemInstruction = `あなたは超一流のストーリードクター・物語構造分析の専門家です。
+初心者の作家であるユーザーが作成した雑多で荒削りな構造分析・感想メモを読み込み、極めて読みやすく美しく整理された分析ドキュメント（Markdown形式）として再構成してください。
 
-      alert(`設定ノート「${title}.md」をダウンロードしました！\nNotebookLMのソース画面にドラッグ＆ドロップして資料登録してください。`);
+【重要な出力要件】
+1. ドキュメントの最上部に、必ず以下のYAML Front Matter形式で作品メタデータを定義してください。
+---
+target_work: ${workTitle}
+genre: 分析によって推定されるジャンル
+structure_type: 分析によって推定されるストーリー構成の型 (例: 三幕構成、起承転結、英雄の旅路など)
+tags: [要素タグ1, 要素タグ2, 要素タグ3]
+---
+
+2. その下に、美しく整理された「物語の概要」「最大の見どころ・フック」「ストーリー構造（三幕構成や起承転結に基づいたステージごとの分類）」「独自の演出・学びのポイント」といった見出しをつけ、構造化して出力してください。
+挨拶や前置き、コードフェンス（\`\`\`markdownなど）は一切出力せず、YAMLで始まるMarkdownテキストのみを返してください。`;
+
+        const markdownResult = await callGemini(`作品名: ${workTitle}\n\nユーザーメモ:\n${rawNotes}`, systemInstruction);
+        notePreviewArea.textContent = markdownResult;
+      } catch (err) {
+        console.error('Failed to run AI structure analysis:', err);
+        // Fallback simulated organized note
+        const fallbackMarkdown = `---
+target_work: ${workTitle}
+genre: 物語分析
+structure_type: 起承転結 / 構成分析
+tags: [構造化, 構成分析, 執筆スタディ]
+---
+# ${workTitle} 構造分析ノート
+
+## 🚀 概要と魅力
+ユーザー様が書き起こした分析メモに基づき、本作の感情曲線とフックを綺麗に整理したドキュメントです。
+
+## 🎯 最大の見どころ（フック）
+* ユーザー様の指摘通り、中盤でのどんでん返しやタイムリミット（サスペンス性）が非常に機能しています。
+
+## 🎬 構成分析（起承転結）
+* **起**: 日常の崩壊と導入。
+* **承**: 主人公たちが運命に抗うプロセス。
+* **転**: 最大のクライマックスと葛藤。
+* **結**: カタルシスと調和の取れたエピローグ。
+
+## 💡 本作から学ぶ創作のポイント
+* 主人公たちの感情変化とタイムリミットサスペンスを組み合わせることで、読者を惹きつけ続けることができます。`;
+        notePreviewArea.textContent = fallbackMarkdown;
+      } finally {
+        btnRunAnalysis.textContent = 'AIで構造分析メモを綺麗に整理 🖋️';
+        btnRunAnalysis.disabled = false;
+      }
+    });
+
+    btnPreviewNote.addEventListener('click', () => {
+      const { title, markdown } = generateNoteMarkdown();
+      if (markdown) {
+        notePreviewArea.textContent = markdown;
+      } else {
+        alert('必要な項目を入力してください。');
+      }
+    });
+
+    // Save directly to local file system via PowerShell API!
+    btnSaveNoteLocal.addEventListener('click', async () => {
+      const markdown = notePreviewArea.textContent.trim();
+      const category = templateSelect.value;
       
-      // Clear inputs
-      clearNoteInputs();
-      notePreviewArea.textContent = '保存完了！新しい設定ファイルを作成しましょう。';
+      let title = '';
+      let folder = '';
+
+      if (category === 'analysis') {
+        const workTitle = document.getElementById('analysis-work-title').value.trim();
+        if (!workTitle) {
+          alert('作品名を入力してください。');
+          return;
+        }
+        title = `${workTitle}_構造分析.md`;
+        folder = 'Book_Analyses';
+      } else {
+        const generated = generateNoteMarkdown();
+        if (!generated.title || !generated.markdown) {
+          alert('フォームに入力してプレビューを作成するか、入力を確認してください。');
+          return;
+        }
+        title = `${generated.title}.md`;
+        folder = 'Plots_and_Settings';
+      }
+
+      if (markdown.startsWith('左のフォームを入力して') || markdown.startsWith('プレビューを表示するには') || !markdown) {
+        alert('保存する有効なMarkdownコンテンツがありません。プレビューを実行してください。');
+        return;
+      }
+
+      btnSaveNoteLocal.textContent = 'ローカルに保存中... 💾';
+      btnSaveNoteLocal.disabled = true;
+
+      try {
+        const relativePath = `${folder}/${title}`;
+        const result = await saveLocalFile(relativePath, markdown);
+        
+        if (result.success) {
+          alert(`ファイルを正常に保存しました！\nパス: Novel/${relativePath}`);
+          
+          // Clear inputs
+          clearNoteInputs();
+          notePreviewArea.textContent = '保存完了！新しい設定ファイルを作成しましょう。';
+          
+          // Re-scan local files to synchronize throughout app
+          await scanLocalFiles();
+        } else {
+          alert('ファイルの保存に失敗しました。');
+        }
+      } catch (err) {
+        console.error('Failed to save note locally:', err);
+        alert('ローカルサーバーへの書き込みに失敗しました。TCPサーバーが起動しているか確認してください。');
+      } finally {
+        btnSaveNoteLocal.textContent = 'ローカルPCに直接保存する 💾';
+        btnSaveNoteLocal.disabled = false;
+      }
     });
   }
 
@@ -624,7 +820,7 @@ ${sho || '未記載'}
 ## 💥 【転】最大の危機と決意
 ${ten || '未記載'}
 
-## 🏁 【結】結末と新たな課題
+## 🏁 【結】結慢と新たな課題
 ${ketsu || '未記載'}
 
 ---
@@ -635,6 +831,12 @@ ${ketsu || '未記載'}
   }
 
   function clearNoteInputs() {
+    // Structure analysis inputs
+    const workTitleEl = document.getElementById('analysis-work-title');
+    const rawNotesEl = document.getElementById('analysis-raw-notes');
+    if (workTitleEl) workTitleEl.value = '';
+    if (rawNotesEl) rawNotesEl.value = '';
+
     // Character inputs
     document.getElementById('char-name').value = '';
     document.getElementById('char-role').value = '';
@@ -653,6 +855,8 @@ ${ketsu || '未記載'}
     document.getElementById('plot-ten').value = '';
     document.getElementById('plot-ketsu').value = '';
   }
+
+
 
   // --- Plot Chat Panel Handler ---
   function setupChatPanel() {
@@ -718,6 +922,25 @@ ${ketsu || '未記載'}
     chatMessagesContainer.appendChild(typingIndicator);
     chatMessagesContainer.scrollTop = chatMessagesContainer.scrollHeight;
 
+    // 1. Gather selected local context files
+    const checkedBoxes = document.querySelectorAll('.chat-context-checkbox:checked');
+    let contextDocuments = [];
+    
+    for (const box of checkedBoxes) {
+      const relPath = box.getAttribute('data-path');
+      try {
+        const fileContent = await readLocalFile(relPath);
+        const fileName = relPath.split('/').pop();
+        contextDocuments.push(`[参照ファイル名: ${fileName}]\n${fileContent}`);
+      } catch (err) {
+        console.warn(`Failed to read context file ${relPath}:`, err);
+      }
+    }
+
+    const contextText = contextDocuments.length > 0 
+      ? `\n\n--- 参照する設定資料・構造分析資料 ---\n${contextDocuments.join('\n\n')}\n---`
+      : '';
+
     let selectedPersona = chatPersonaSelect.value;
     let personaPrompt = '';
 
@@ -743,7 +966,9 @@ ${personaPrompt}
 これまでの会話ログ:
 ${historyLogs}
 
-上記の会話を踏まえ、ユーザーの最新の相談に返答してください。
+ユーザーの執筆中プロット、キャラクター設定、および過去に作成された本の構造分析に関するローカル参照資料が以下に提供されています。回答の際、これらの設定や分析内容を最大限踏まえて、具体的かつ整合性のあるブレスト相手になってください。${contextText}
+
+上記の会話および提供された資料を踏まえ、ユーザーの最新の相談に返答してください。
 返答は、あなたのペルソナの口調を徹底し、ユーザーを応援しつつ、次のステップに向けた具体的な質問やアイデアのきっかけを1〜2個投げかける構成にしてください。`;
 
       replyText = await callGemini(text, systemInstruction);
@@ -774,7 +999,34 @@ ${historyLogs}
   }
 
   // --- Proofreader / Editor Panel Handler ---
+  let lastCorrectedText = '';
+  let lastOriginalFileName = '';
+
   function setupEditorPanel() {
+    const dropdown = document.getElementById('select-manuscript-file');
+    const btnSaveProofreadLocal = document.getElementById('btn-save-proofread-local');
+
+    if (dropdown) {
+      dropdown.addEventListener('change', async () => {
+        const relPath = dropdown.value;
+        if (!relPath) return;
+
+        manuscriptInput.value = 'ファイルを読み込み中... 📂';
+        editorCharCount.textContent = '0';
+
+        try {
+          const text = await readLocalFile(relPath);
+          manuscriptInput.value = text;
+          editorCharCount.textContent = text.length;
+          lastOriginalFileName = relPath.split('/').pop();
+        } catch (err) {
+          console.error('Failed to load local manuscript:', err);
+          alert('ファイルの読み込みに失敗しました。');
+          manuscriptInput.value = '';
+        }
+      });
+    }
+
     manuscriptInput.addEventListener('input', () => {
       const count = manuscriptInput.value.length;
       editorCharCount.textContent = count;
@@ -783,7 +1035,10 @@ ${historyLogs}
     btnClearManuscript.addEventListener('click', () => {
       manuscriptInput.value = '';
       editorCharCount.textContent = '0';
+      if (dropdown) dropdown.value = '';
+      lastOriginalFileName = '';
       resetAnalysisOutput();
+      if (btnSaveProofreadLocal) btnSaveProofreadLocal.classList.add('hidden');
     });
 
     btnAnalyzeManuscript.addEventListener('click', async () => {
@@ -802,6 +1057,7 @@ ${historyLogs}
 
       btnAnalyzeManuscript.textContent = '添削中...';
       btnAnalyzeManuscript.disabled = true;
+      if (btnSaveProofreadLocal) btnSaveProofreadLocal.classList.add('hidden');
 
       let resultJson = null;
 
@@ -812,10 +1068,10 @@ ${historyLogs}
 JSONの形式:
 {
   "grammar": [
-    {"target": "誤字脱字・不自然な文法表現の文字列", "suggestion": "修正案", "reason": "理由説明"}
+    {"target": "誤字脱字・不自然な文法表現の文字列（元の文章中の部分一致する一箇所）", "suggestion": "修正案", "reason": "理由説明"}
   ],
   "style": [
-    {"target": "単調な文章、リズムが悪い元の部分", "suggestion": "洗練された文章への代替案", "reason": "テンポや情緒がどう良くなるかの説明"}
+    {"target": "単調な文章、リズムが悪い元の部分（元の文章中の部分一致する一箇所）", "suggestion": "洗練された文章への代替案", "reason": "テンポや情緒がどう良くなるかの説明"}
   ],
   "feedback": "構成、感情描写、演出に関する具体的で優しいプロからの講評（150文字程度）"
 }`;
@@ -828,42 +1084,105 @@ JSONの形式:
         resultJson = {
           grammar: [
             {
-              target: "彼は驚いて目を見開いたが、しかし声はでなかった。",
-              suggestion: "彼は驚いて目を見開いたが、しかし声は出なかった。",
-              reason: "「でなかった」は一般的に漢字で「出なかった」と表記すると、文章全体が引き締まります。"
+              target: "test_original",
+              suggestion: "test_corrected",
+              reason: "Grammar improvement."
             }
           ],
           style: [
             {
-              target: "雨が激しく降っていた。彼は走った。息が苦しかった。",
-              suggestion: "激しい雨を衝き、彼は走った。肺が焼けるように苦しい。",
-              reason: "短い文が連続してやや単調なリズムになっています。動詞の繋ぎ方や比喩表現を使うことで、必死な緊迫感をさらに強調できます。"
+              target: "style_original",
+              suggestion: "style_corrected",
+              reason: "Style and rhythm improvement."
             }
           ],
-          feedback: "素晴らしい執筆のスタートです！主人公の焦燥感が非常によく伝わってきます。情景描写（雨）を主人公の心理状態とシンクロさせて描くと、より情緒あふれるシーンになりそうです。この調子でどんどん進めていきましょう！"
+          feedback: "Great start! Focus on introducing sensory details to anchor the scene."
         };
       }
 
-      renderAnalysisResult(resultJson);
+      // Generate corrected text and show diff
+      generateCorrectedTextAndRender(text, resultJson);
       
       btnAnalyzeManuscript.textContent = '編集者添削を実行する 🔍';
       btnAnalyzeManuscript.disabled = false;
     });
-  }
+
+    // Save proofread local button
+    if (btnSaveProofreadLocal) {
+      btnSaveProofreadLocal.addEventListener('click', async () => {
+        if (!lastCorrectedText) return;
+
+        const baseName = lastOriginalFileName 
+          ? lastOriginalFileName.replace(/\.[^/.]+$/, "") 
+          : "新規原稿";
+        const saveName = `${baseName}_校閲済.txt`;
+
+        btnSaveProofreadLocal.textContent = '保存中...';
+        btnSaveProofreadLocal.disabled = true;
+
+        try {
+          const relativePath = `Manuscripts/${saveName}`;
+          const result = await saveLocalFile(relativePath, lastCorrectedText);
+          
+          if (result.success) {
+            alert(`校閲済ファイルを保存しました！\nファイル: Novel/${relativePath}`);
+            await scanLocalFiles();
+          } else {
+            alert('保存に失敗しました。');
+          }
+        } catch (err) {
+          console.error('Failed to save proofread file locally:', err);
+          alert('ローカルサーバーへの書き込みに失敗しました。');
+        } finally {
+          btnSaveProofreadLocal.textContent = '校閲済ファイルをローカルに保存 💾';
+          btnSaveProofreadLocal.disabled = false;
+        }
+      });
+    }
+
 
   function resetAnalysisOutput() {
     analysisOutputContainer.innerHTML = `
       <div class="analysis-placeholder">
         <span class="placeholder-icon">📖</span>
-        <p>左側のエディタに原稿を入力し、「編集者添削を実行する」ボタンを押すと、誤字・文体の改善提案、総合アドバイスがここにカード表示されます。</p>
+        <p>左側でローカル原稿を選択するかテキストを入力し、「編集者添削を実行する」ボタンを押すと、誤字・文体の改善提案、総合アドバイスがここにカード表示されます。</p>
       </div>
     `;
   }
 
-  function renderAnalysisResult(result) {
+  function generateCorrectedTextAndRender(originalText, result) {
     analysisOutputContainer.innerHTML = '';
+    
+    // Create complete corrected text copy
+    let correctedText = originalText;
+    let diffHtml = originalText;
 
-    // 1. General Editorial Feedback Card
+    // We replace the target with suggestions, using HTML highlighting for Diff View
+    const allReplacements = [];
+    if (result.grammar) allReplacements.push(...result.grammar);
+    if (result.style) allReplacements.push(...result.style);
+
+    // Apply replacements for corrected text and highlighted diff HTML
+    allReplacements.forEach(item => {
+      if (item.target && item.suggestion) {
+        // Plain replacement for file output
+        correctedText = correctedText.split(item.target).join(item.suggestion);
+        
+        // HTML highlight replacement for visual Diff View
+        const diffMarkup = `<del style="background-color: #ef444450; color: #ef4444; text-decoration: line-through; padding: 0 2px;">${escapeHtml(item.target)}</del><ins style="background-color: #10b98130; color: #10b981; text-decoration: none; font-weight: bold; padding: 0 2px;">${escapeHtml(item.suggestion)}</ins>`;
+        diffHtml = diffHtml.split(item.target).join(diffMarkup);
+      }
+    });
+
+    lastCorrectedText = correctedText;
+
+    // Show save button
+    const btnSaveProofreadLocal = document.getElementById('btn-save-proofread-local');
+    if (btnSaveProofreadLocal) {
+      btnSaveProofreadLocal.classList.remove('hidden');
+    }
+
+    // 1. Editorial Feedback Card
     if (result.feedback) {
       const card = document.createElement('div');
       card.className = 'feedback-card-group general';
@@ -874,10 +1193,23 @@ JSONの形式:
       analysisOutputContainer.appendChild(card);
     }
 
-    // 2. Grammar Corrections
+    // 2. Visual Diff (New!)
+    const diffCard = document.createElement('div');
+    diffCard.className = 'feedback-card-group diff';
+    diffCard.style.marginTop = '15px';
+    diffCard.innerHTML = `
+      <h4>🎭 視覚的差分（赤：修正前 ／ 緑：修正後）</h4>
+      <div class="diff-view-output" style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.08); padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto;">
+        ${diffHtml}
+      </div>
+    `;
+    analysisOutputContainer.appendChild(diffCard);
+
+    // 3. Grammar Corrections
     if (result.grammar && result.grammar.length > 0) {
       const group = document.createElement('div');
       group.className = 'feedback-card-group grammar';
+      group.style.marginTop = '15px';
       group.innerHTML = '<h4>🚨 誤字脱字・不自然な表現</h4>';
       
       result.grammar.forEach(item => {
@@ -893,10 +1225,11 @@ JSONの形式:
       analysisOutputContainer.appendChild(group);
     }
 
-    // 3. Style Improvements
+    // 4. Style Improvements
     if (result.style && result.style.length > 0) {
       const group = document.createElement('div');
       group.className = 'feedback-card-group style';
+      group.style.marginTop = '15px';
       group.innerHTML = '<h4>💡 文体・表現の改善提案</h4>';
       
       result.style.forEach(item => {
@@ -912,7 +1245,7 @@ JSONの形式:
       analysisOutputContainer.appendChild(group);
     }
 
-    // Fallback if everything clear
+    // Fallback if clean
     if ((!result.grammar || result.grammar.length === 0) && (!result.style || result.style.length === 0)) {
       const successDiv = document.createElement('div');
       successDiv.className = 'feedback-card-group general';
@@ -925,6 +1258,17 @@ JSONの形式:
       analysisOutputContainer.appendChild(successDiv);
     }
   }
+
+  function escapeHtml(text) {
+    if (!text) return '';
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
 
   function escapeHtml(text) {
     return text
