@@ -123,34 +123,19 @@
                 <span class="stat-value" id="stat-total-words">0</span>
                 <span class="stat-label">総執筆文字数</span>
               </div>
-              <div class="stat-item">
-                <span class="stat-value" id="stat-total-notes">0</span>
-                <span class="stat-label">設定ノート数</span>
-              </div>
-            </div>
-            
-            <div class="calendar-widget">
-              <h4>📅 習慣カレンダー (直近7日間)</h4>
-              <div class="calendar-days" id="calendar-days-container">
-                <!-- Days will be dynamically rendered here -->
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Panel: NotebookLM Settings Generator -->
+                 <!-- Panel: Structure Analysis & Settings Generator -->
       <section id="notebook-panel" class="content-panel">
         <header class="panel-header">
-          <h2>NotebookLM設定ノート作成</h2>
-          <p class="panel-subtitle">構造化した設定資料を作り、Googleドライブ（NotebookLMソース）と同期します</p>
+          <h2>構造分析 ＆ 設定資料（構造分析ルート）</h2>
+          <p class="panel-subtitle">雑多な読書分析メモをAIで整理し、あるいはキャラクター・プロット資料を作成してローカルに直接保存します</p>
         </header>
 
         <div class="notebook-container">
           <div class="card notebook-form-card">
             <div class="template-selector-container">
-              <label for="template-select">📜 テンプレートを選択:</label>
+              <label for="template-select">📜 作成する資料タイプを選択:</label>
               <select id="template-select" class="select-field">
+                <option value="analysis">📚 雑多な本・物語の構造分析メモ (AI自動整理)</option>
                 <option value="character">👥 キャラクター設定シート</option>
                 <option value="world">🗺️ 世界観・組織設定シート</option>
                 <option value="plot">🎬 起承転結プロットアウトライン</option>
@@ -158,7 +143,21 @@
             </div>
 
             <!-- Dynamic Form Templates -->
-            <div id="character-template-form" class="template-form">
+            <!-- 1. Structure Analysis (New) -->
+            <div id="analysis-template-form" class="template-form">
+              <div class="form-group">
+                <label for="analysis-work-title">対象作品名・著者名:</label>
+                <input type="text" id="analysis-work-title" placeholder="例: 君の名は。 (新海誠)" class="input-field">
+              </div>
+              <div class="form-group">
+                <label for="analysis-raw-notes">雑多な分析・感想メモ (自由に書き殴ってください):</label>
+                <textarea id="analysis-raw-notes" placeholder="例:&#13;前半のコメディと後半のシリアスさのギャップが良い。&#13;三葉と瀧の入れ替わりが3年ずれているのが中盤で明かされるのが最大のフック。&#13;彗星の落下のタイムリミットがサスペンスを生んでいる。&#13;最後、すれ違う二人だが名前を尋ね合うところで感動的に終わる。" class="textarea-field" rows="8"></textarea>
+              </div>
+              <button id="btn-run-analysis-structure" class="btn btn-secondary" style="width: 100%; margin-top: 8px;">AIで構造分析メモを綺麗に整理 🖋️</button>
+            </div>
+
+            <!-- 2. Character Sheet -->
+            <div id="character-template-form" class="template-form hidden">
               <div class="form-group">
                 <label for="char-name">キャラクター名:</label>
                 <input type="text" id="char-name" placeholder="例: 御坂 翼 (みさか つばさ)" class="input-field">
@@ -177,6 +176,7 @@
               </div>
             </div>
 
+            <!-- 3. World / Setting Sheet -->
             <div id="world-template-form" class="template-form hidden">
               <div class="form-group">
                 <label for="world-name">設定名（都市・組織・魔法・歴史等）:</label>
@@ -192,6 +192,7 @@
               </div>
             </div>
 
+            <!-- 4. Plot outline -->
             <div id="plot-template-form" class="template-form hidden">
               <div class="form-group">
                 <label for="plot-title">物語/シーンのタイトル:</label>
@@ -210,14 +211,14 @@
                 <textarea id="plot-ten" placeholder="例: 窮地に陥った親友を救うため、禁忌の力を解放することを決意する。" class="textarea-field" rows="3"></textarea>
               </div>
               <div class="form-group">
-                <label for="plot-ketsu">【結】結慢と新たな課題:</label>
+                <label for="plot-ketsu">【結】結末と新たな課題:</label>
                 <textarea id="plot-ketsu" placeholder="例: 敵を退けることに成功するが、力の代償により自身の運命が変わり始める。" class="textarea-field" rows="3"></textarea>
               </div>
             </div>
 
-            <div class="form-actions">
+            <div class="form-actions" style="margin-top: 15px;">
               <button id="btn-preview-note" class="btn btn-outline">Markdownプレビュー</button>
-              <button id="btn-sync-note" class="btn btn-primary">設定Markdownをダウンロード 🚀</button>
+              <button id="btn-save-note-local" class="btn btn-primary">ローカルPCに直接保存する 💾</button>
             </div>
           </div>
 
@@ -227,24 +228,24 @@
               <h3>📝 ノート出力プレビュー</h3>
             </div>
             <div class="preview-output" id="note-preview-area">
-              <p class="preview-placeholder">左のフォームを入力して、「Markdownプレビュー」または「ダウンロード」を押してください。</p>
+              <p class="preview-placeholder">左のフォームを入力して、「Markdownプレビュー」または「保存」を押してください。</p>
             </div>
 
             <div class="sync-history-container">
-              <h4>📁 作成済み設定ノート履歴</h4>
+              <h4>📁 ローカルフォルダ連携ファイル履歴</h4>
               <ul class="sync-list" id="sync-notes-list">
                 <!-- Synced files will be populated dynamically -->
-                <li class="empty-sync-msg">まだダウンロードされた設定はありません。</li>
+                <li class="empty-sync-msg">ファイル読込中...</li>
               </ul>
               <div class="sync-tip-box">
-                💡 <b>NotebookLMへの連携方法</b><br>
-                1. フォームに入力して「ダウンロード」を押すと、設定Markdownファイルが保存されます。<br>
-                2. そのファイルをそのままNotebookLMのソース画面にドラッグ＆ドロップするだけで完璧に読み込まれます！
+                💡 <b>ローカル完全循環型システム</b><br>
+                1. 整理された設定資料や構造分析メモは、直接ローカルPCの <code>Novel/Plots_and_Settings</code> や <code>Novel/Book_Analyses</code> フォルダに保存されます。<br>
+                2. 保存されたファイルは「プロット壁打ち（編集者ルート）」の参照コンテキストとして自動認識されます！
               </div>
             </div>
           </div>
         </div>
-      </section>
+
 
       <!-- Panel: Wall-Hitting Chat -->
       <section id="chat-panel" class="content-panel">
@@ -256,7 +257,7 @@
         <div class="chat-container card">
           <div class="chat-sidebar">
             <h3>👥 編集者の設定</h3>
-            <div class="persona-selector-box">
+            <div class="persona-selector-box" style="margin-bottom: 15px;">
               <label for="chat-persona-select">編集者キャラクター:</label>
               <select id="chat-persona-select" class="select-field">
                 <option value="normal">標準（優しく論理的な編集者）</option>
@@ -266,12 +267,32 @@
               </select>
             </div>
             
-            <div id="custom-persona-config" class="hidden">
+            <div id="custom-persona-config" class="hidden" style="margin-bottom: 15px;">
               <label for="custom-persona-prompt">キャラクターの特徴・口調:</label>
               <textarea id="custom-persona-prompt" class="textarea-field" placeholder="例: 明るく活発なツンデレ気味の幼馴染。語尾は『〜よね』『〜じゃない？』。創作知識が豊富で、時々厳しくも温かくアドバイスをくれる。" rows="4"></textarea>
             </div>
 
-            <div class="chat-help-box">
+            <!-- Context Selector: Local Files Reference -->
+            <div class="chat-context-selector">
+              <h3>📖 参照するローカル資料 (AIに読み込ませる)</h3>
+              <p style="font-size: 11px; color: #a78bfa; margin-bottom: 10px;">チェックを入れたファイルが自動でGeminiのコンテキストにマージされます</p>
+              
+              <div class="context-group">
+                <h4>👥 設定資料・プロット (Plots_and_Settings)</h4>
+                <div class="context-checkbox-list" id="chat-plots-checkbox-list">
+                  <span class="empty-list-text">資料がありません</span>
+                </div>
+              </div>
+              
+              <div class="context-group" style="margin-top: 12px;">
+                <h4>📚 構造分析メモ (Book_Analyses)</h4>
+                <div class="context-checkbox-list" id="chat-analyses-checkbox-list">
+                  <span class="empty-list-text">分析メモがありません</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="chat-help-box" style="margin-top: 15px;">
               <h4>💡 おすすめの質問:</h4>
               <ul>
                 <li>「主人公が宿敵と初めて対峙するシーンの演出案を考えて」</li>
@@ -297,17 +318,27 @@
       <!-- Panel: Proofreader / Editor -->
       <section id="editor-panel" class="content-panel">
         <header class="panel-header">
-          <h2>校閲・添削エディタ</h2>
-          <p class="panel-subtitle">執筆した原稿を貼り付け、誤字脱字、表現のリズム、演出アドバイスを瞬時に分析します</p>
+          <h2>校閲・添削エディタ（添削・校閲ルート）</h2>
+          <p class="panel-subtitle">ローカルの原稿ファイルを読み込み、あるいは直接貼り付けて、誤字脱字・リズム・演出の添削を実行します</p>
         </header>
 
         <div class="editor-view-container">
           <div class="card input-editor-card">
-            <div class="card-header">
+            <div class="card-header" style="flex-wrap: wrap; gap: 10px;">
               <h3>✍️ 原稿テキスト入力</h3>
+              
+              <!-- Local manuscript loader select -->
+              <div class="local-loader-box" style="display: flex; align-items: center; gap: 8px;">
+                <label for="select-manuscript-file" style="font-size: 12px; color: #c084fc;">📁 ローカル原稿読込:</label>
+                <select id="select-manuscript-file" class="select-field" style="width: auto; padding: 4px 8px; font-size: 12px;">
+                  <option value="">-- ファイルを選択 --</option>
+                  <!-- Manuscripts will populate here -->
+                </select>
+              </div>
+
               <div class="char-counter"><span id="editor-char-count">0</span> 文字</div>
             </div>
-            <textarea id="manuscript-input" class="textarea-field editor-textarea" placeholder="ここに添削したい段落や章のテキストを貼り付けてください（目安: 500〜3000文字程度）..." rows="18"></textarea>
+            <textarea id="manuscript-input" class="textarea-field editor-textarea" placeholder="ローカル原稿を選択するか、ここに添削したい段落や章のテキストを貼り付けてください（目安: 500〜3000文字程度）..." rows="18"></textarea>
             <div class="editor-actions">
               <button id="btn-clear-manuscript" class="btn btn-outline">クリア</button>
               <button id="btn-analyze-manuscript" class="btn btn-primary">編集者添削を実行する 🔍</button>
@@ -315,13 +346,17 @@
           </div>
 
           <div class="card analysis-result-card">
-            <div class="card-header">
+            <div class="card-header" style="justify-content: space-between; align-items: center;">
               <h3>🔍 添削・推敲結果</h3>
+              <!-- Save proofread to local button -->
+              <button id="btn-save-proofread-local" class="btn btn-secondary hidden" style="padding: 6px 12px; font-size: 12px;">
+                校閲済ファイルをローカルに保存 💾
+              </button>
             </div>
             <div class="analysis-output-container" id="analysis-output-container">
               <div class="analysis-placeholder">
                 <span class="placeholder-icon">📖</span>
-                <p>左側のエディタに原稿を入力し、「編集者添削を実行する」ボタンを押すと、誤字・文体の改善提案、総合アドバイスがここにカード表示されます。</p>
+                <p>左側でローカル原稿を選択するかテキストを入力し、「編集者添削を実行する」ボタンを押すと、誤字・文体の改善提案、総合アドバイスがここにカード表示されます。</p>
               </div>
             </div>
           </div>
