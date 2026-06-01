@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novel Editor Partner - 専属AI編集者システム</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <span class="logo-icon">✨</span>
+        <h1 class="logo-text">Novel Editor</h1>
+      </div>
+      
+      <!-- User Level Progress Mini-Widget -->
+      <div class="user-level-widget">
+        <div class="level-info">
+          <span class="user-name" id="sidebar-author-name">著者</span>
+          <span class="level-badge" id="sidebar-level">Lv. 1</span>
+        </div>
+        <div class="xp-bar-container">
+          <div class="xp-bar-fill" id="sidebar-xp-fill" style="width: 0%;"></div>
+        </div>
+        <div class="xp-text" id="sidebar-xp-text">0 / 200 XP</div>
+      </div>
+
+      <nav class="sidebar-menu">
+        <a href="#" class="menu-item active" data-target="dashboard-panel" id="menu-dashboard">
+          <span class="menu-icon">🏠</span> ダッシュボード
+        </a>
+        <a href="#" class="menu-item" data-target="notebook-panel" id="menu-notebook">
+          <span class="menu-icon">📝</span> NotebookLMソース
+        </a>
+        <a href="#" class="menu-item" data-target="chat-panel" id="menu-chat">
+          <span class="menu-icon">💬</span> プロット壁打ち
+        </a>
+        <a href="#" class="menu-item" data-target="editor-panel" id="menu-editor">
+          <span class="menu-icon">🔍</span> 校閲・添削エディタ
+        </a>
+        <a href="#" class="menu-item" data-target="settings-panel" id="menu-settings">
+          <span class="menu-icon">⚙️</span> 設定
+        </a>
+      </nav>
+
+      <!-- Streak Widget -->
+      <div class="streak-mini-widget" id="sidebar-streak-widget">
+        <div class="streak-icon">🔥</div>
+        <div class="streak-data">
+          <span class="streak-count" id="sidebar-streak-count">0 日連続</span>
+          <span class="streak-label">執筆継続中！</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- Panel: Dashboard -->
+      <section id="dashboard-panel" class="content-panel active">
+        <header class="panel-header">
+          <h2>ダッシュボード</h2>
+          <p class="panel-subtitle">今日の執筆リズムを整えましょう</p>
+        </header>
+
+        <div class="dashboard-grid">
+          <!-- Habit Streak Widget -->
+          <div class="card streak-card">
+            <div class="card-header">
+              <h3>🔥 習慣化トラッカー</h3>
+              <span class="badge">Tiny Habits</span>
+            </div>
+            <div class="streak-large-display">
+              <span class="streak-large-number" id="dash-streak-number">0</span>
+              <span class="streak-large-unit">日連続執筆</span>
+            </div>
+            <p class="streak-desc">
+              「エディタを開いて1文字書く」だけでも立派な一歩です。今日も記録を伸ばしましょう！
+            </p>
+            <div class="quick-write-action">
+              <input type="number" id="quick-word-count" placeholder="書いた文字数（例: 200）" class="input-field">
+              <button id="btn-log-words" class="btn btn-primary">執筆ログを保存</button>
+            </div>
+          </div>
+
+          <!-- Daily Writing Drill Widget -->
+          <div class="card drill-card">
+            <div class="card-header">
+              <h3>🎯 本日の5分創作ドリル</h3>
+              <span class="badge badge-accent" id="drill-type">表現力ドリル</span>
+            </div>
+            <div class="drill-body">
+              <h4 id="drill-title">読み込み中...</h4>
+              <p class="drill-prompt" id="drill-prompt">本日のドリル課題がここに表示されます。</p>
+              
+              <div id="drill-input-container">
+                <textarea id="drill-response-text" placeholder="ここに課題への回答を入力してください..." class="textarea-field" rows="4"></textarea>
+                <button id="btn-submit-drill" class="btn btn-secondary">回答を提出する (+50 XP)</button>
+              </div>
+
+              <div id="drill-feedback-container" class="hidden">
+                <div class="feedback-bubble">
+                  <h5>🌟 編集者からのフィードバック:</h5>
+                  <p id="drill-feedback-text">回答分析中...</p>
+                </div>
+                <button id="btn-next-drill" class="btn btn-outline">もう一度ドリルに挑戦</button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Quick Status Card -->
+          <div class="card stats-card">
+            <div class="card-header">
+              <h3>📊 執筆実績</h3>
+            </div>
+            <div class="stats-overview">
+              <div class="stat-item">
+                <span class="stat-value" id="stat-total-words">0</span>
+                <span class="stat-label">総執筆文字数</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="stat-total-notes">0</span>
+                <span class="stat-label">設定ノート数</span>
+              </div>
+            </div>
+            
+            <div class="calendar-widget">
+              <h4>📅 習慣カレンダー (直近7日間)</h4>
+              <div class="calendar-days" id="calendar-days-container">
+                <!-- Days will be dynamically rendered here -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: NotebookLM Settings Generator -->
+      <section id="notebook-panel" class="content-panel">
+        <header class="panel-header">
+          <h2>NotebookLM設定ノート作成</h2>
+          <p class="panel-subtitle">構造化した設定資料を作り、Googleドライブ（NotebookLMソース）と同期します</p>
+        </header>
+
+        <div class="notebook-container">
+          <div class="card notebook-form-card">
+            <div class="template-selector-container">
+              <label for="template-select">📜 テンプレートを選択:</label>
+              <select id="template-select" class="select-field">
+                <option value="character">👥 キャラクター設定シート</option>
+                <option value="world">🗺️ 世界観・組織設定シート</option>
+                <option value="plot">🎬 起承転結プロットアウトライン</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Form Templates -->
+            <div id="character-template-form" class="template-form">
+              <div class="form-group">
+                <label for="char-name">キャラクター名:</label>
+                <input type="text" id="char-name" placeholder="例: 御坂 翼 (みさか つばさ)" class="input-field">
+              </div>
+              <div class="form-group">
+                <label for="char-role">物語での役割:</label>
+                <input type="text" id="char-role" placeholder="例: 主人公、ライバル、ヒロイン" class="input-field">
+              </div>
+              <div class="form-group">
+                <label for="char-traits">性格・特徴・外見 (箇条書き推奨):</label>
+                <textarea id="char-traits" placeholder="例: &#13;・正義感が強く、少しお節介。&#13;・黒髪のショートカットで常に青いマフラーをしている。&#13;・緊張すると左手を握りしめる癖がある。" class="textarea-field" rows="4"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="char-motivation">目的・モチベーション (葛藤):</label>
+                <textarea id="char-motivation" placeholder="例: 行方不明の妹を探し出すこと。しかし、その手掛かりを追うことが大切な親友を裏切ることになるのではないかと葛藤している。" class="textarea-field" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div id="world-template-form" class="template-form hidden">
+              <div class="form-group">
+                <label for="world-name">設定名（都市・組織・魔法・歴史等）:</label>
+                <input type="text" id="world-name" placeholder="例: 特殊防衛隊（S.D.F）" class="input-field">
+              </div>
+              <div class="form-group">
+                <label for="world-overview">基本概要:</label>
+                <textarea id="world-overview" placeholder="例: 10年前に突如現れた異界生物に対抗するために設立された、政府直轄の超法規的武装組織。" class="textarea-field" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="world-rules">ルール・制約・設定詳細 (箇条書き推奨):</label>
+                <textarea id="world-rules" placeholder="例: &#13;・隊員は適合者のみで構成され、魔石を用いた武器を使用する。&#13;・魔石の乱用は「魔力中毒」を引き起こし、最悪の場合は異形化するリスクがあるため使用制限時間がある。" class="textarea-field" rows="5"></textarea>
+              </div>
+            </div>
+
+            <div id="plot-template-form" class="template-form hidden">
+              <div class="form-group">
+                <label for="plot-title">物語/シーンのタイトル:</label>
+                <input type="text" id="plot-title" placeholder="例: 第1話「翼の覚醒」" class="input-field">
+              </div>
+              <div class="form-group">
+                <label for="plot-ki">【起】日常と事件の始まり:</label>
+                <textarea id="plot-ki" placeholder="例: 平凡な学生生活を送る主人公の前に、異形が現れ日常が崩壊する。" class="textarea-field" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="plot-sho">【承】試練と葛藤:</label>
+                <textarea id="plot-sho" placeholder="例: 仲間と共に異世界組織に囲まれ、自分の無力さを知る。" class="textarea-field" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="plot-ten">【転】最大の危機と決意（クライマックス）:</label>
+                <textarea id="plot-ten" placeholder="例: 窮地に陥った親友を救うため、禁忌の力を解放することを決意する。" class="textarea-field" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="plot-ketsu">【結】結慢と新たな課題:</label>
+                <textarea id="plot-ketsu" placeholder="例: 敵を退けることに成功するが、力の代償により自身の運命が変わり始める。" class="textarea-field" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button id="btn-preview-note" class="btn btn-outline">Markdownプレビュー</button>
+              <button id="btn-sync-note" class="btn btn-primary">設定Markdownをダウンロード 🚀</button>
+            </div>
+          </div>
+
+          <!-- Note Preview and Status -->
+          <div class="card notebook-preview-card">
+            <div class="card-header">
+              <h3>📝 ノート出力プレビュー</h3>
+            </div>
+            <div class="preview-output" id="note-preview-area">
+              <p class="preview-placeholder">左のフォームを入力して、「Markdownプレビュー」または「ダウンロード」を押してください。</p>
+            </div>
+
+            <div class="sync-history-container">
+              <h4>📁 作成済み設定ノート履歴</h4>
+              <ul class="sync-list" id="sync-notes-list">
+                <!-- Synced files will be populated dynamically -->
+                <li class="empty-sync-msg">まだダウンロードされた設定はありません。</li>
+              </ul>
+              <div class="sync-tip-box">
+                💡 <b>NotebookLMへの連携方法</b><br>
+                1. フォームに入力して「ダウンロード」を押すと、設定Markdownファイルが保存されます。<br>
+                2. そのファイルをそのままNotebookLMのソース画面にドラッグ＆ドロップするだけで完璧に読み込まれます！
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Wall-Hitting Chat -->
+      <section id="chat-panel" class="content-panel">
+        <header class="panel-header">
+          <h2>プロット壁打ちパートナー</h2>
+          <p class="panel-subtitle">専属編集者のAIと会話しながら、アイディアやキャラクター設定を深めましょう</p>
+        </header>
+
+        <div class="chat-container card">
+          <div class="chat-sidebar">
+            <h3>👥 編集者の設定</h3>
+            <div class="persona-selector-box">
+              <label for="chat-persona-select">編集者キャラクター:</label>
+              <select id="chat-persona-select" class="select-field">
+                <option value="normal">標準（優しく論理的な編集者）</option>
+                <option value="supportive">大肯定コーチ（褒めちぎって伸ばす）</option>
+                <option value="logical">論理特化アナリスト（構成・整合性重視）</option>
+                <option value="custom">お気に入り（自分で設定）</option>
+              </select>
+            </div>
+            
+            <div id="custom-persona-config" class="hidden">
+              <label for="custom-persona-prompt">キャラクターの特徴・口調:</label>
+              <textarea id="custom-persona-prompt" class="textarea-field" placeholder="例: 明るく活発なツンデレ気味の幼馴染。語尾は『〜よね』『〜じゃない？』。創作知識が豊富で、時々厳しくも温かくアドバイスをくれる。" rows="4"></textarea>
+            </div>
+
+            <div class="chat-help-box">
+              <h4>💡 おすすめの質問:</h4>
+              <ul>
+                <li>「主人公が宿敵と初めて対峙するシーンの演出案を考えて」</li>
+                <li>「この魔法設定の、ストーリー的な弱点やリスクは何かある？」</li>
+                <li>「起承転結の『転』が少し盛り上がりに欠けるので、どんでん返しのアイデアを出して」</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="chat-main">
+            <div class="chat-history" id="chat-messages-container">
+              <!-- Dynamically populated with chat history -->
+            </div>
+            
+            <div class="chat-input-area">
+              <input type="text" id="chat-user-message" placeholder="編集者にメッセージを送信... (例: このキャラクターの葛藤について相談したい)" class="input-field">
+              <button id="btn-send-message" class="btn btn-primary">送信</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Proofreader / Editor -->
+      <section id="editor-panel" class="content-panel">
+        <header class="panel-header">
+          <h2>校閲・添削エディタ</h2>
+          <p class="panel-subtitle">執筆した原稿を貼り付け、誤字脱字、表現のリズム、演出アドバイスを瞬時に分析します</p>
+        </header>
+
+        <div class="editor-view-container">
+          <div class="card input-editor-card">
+            <div class="card-header">
+              <h3>✍️ 原稿テキスト入力</h3>
+              <div class="char-counter"><span id="editor-char-count">0</span> 文字</div>
+            </div>
+            <textarea id="manuscript-input" class="textarea-field editor-textarea" placeholder="ここに添削したい段落や章のテキストを貼り付けてください（目安: 500〜3000文字程度）..." rows="18"></textarea>
+            <div class="editor-actions">
+              <button id="btn-clear-manuscript" class="btn btn-outline">クリア</button>
+              <button id="btn-analyze-manuscript" class="btn btn-primary">編集者添削を実行する 🔍</button>
+            </div>
+          </div>
+
+          <div class="card analysis-result-card">
+            <div class="card-header">
+              <h3>🔍 添削・推敲結果</h3>
+            </div>
+            <div class="analysis-output-container" id="analysis-output-container">
+              <div class="analysis-placeholder">
+                <span class="placeholder-icon">📖</span>
+                <p>左側のエディタに原稿を入力し、「編集者添削を実行する」ボタンを押すと、誤字・文体の改善提案、総合アドバイスがここにカード表示されます。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Panel: Settings -->
+      <section id="settings-panel" class="content-panel">
+        <header class="panel-header">
+          <h2>システム設定</h2>
+          <p class="panel-subtitle">執筆環境とAPIの連携設定を行います</p>
+        </header>
+
+        <div class="card settings-card">
+          <h3>👤 著者プロフィール</h3>
+          <div class="form-group">
+            <label for="settings-author-name">著者名（ペンネーム）:</label>
+            <input type="text" id="settings-author-name" class="input-field" placeholder="ペンネームを入力">
+          </div>
+
+          <h3>🔑 API 連携設定</h3>
+          <div class="form-group">
+            <div class="label-with-help">
+              <label for="settings-gemini-key">Gemini API キー (推奨):</label>
+              <span class="help-link"><a href="https://aistudio.google.com/" target="_blank">APIキーを取得する 🔗</a></span>
+            </div>
+            <input type="password" id="settings-gemini-key" class="input-field" placeholder="AIによる添削・壁打ちを完全動作させるためのキーを入力">
+            <small class="form-help">APIキーを入力すると、Gemini 1.5 Flashを直接呼び出し、非常に賢い添削や本格的な壁打ちが行えます。</small>
+            <small class="form-help" style="color: #c084fc;">※未入力の場合でも、システムは「高精度なシミュレーションAIモード」で完全動作しますので、今すぐすべての機能を体験いただけます！</small>
+          </div>
+
+          <button id="btn-save-settings" class="btn btn-primary">設定を保存する 💾</button>
+        </div>
+
+        <div class="card settings-card" style="margin-top: 24px;">
+          <h3>💾 データ同期・デバイス間引継ぎ</h3>
+          <p class="panel-subtitle" style="margin-bottom: 16px; font-size: 12px;">PCとスマホなど、異なる端末で執筆進捗、レベル、スタンプを同期できます。</p>
+          
+          <div class="form-group">
+            <label for="settings-backup-code">データ同期コード (JSON):</label>
+            <textarea id="settings-backup-code" class="textarea-field" placeholder="現在のデータコードがここに表示されます。または移行元のコードをここに貼り付けてください..." rows="4"></textarea>
+          </div>
+          
+          <div class="form-actions">
+            <button id="btn-export-data" class="btn btn-outline">同期コードを生成してコピー 📤</button>
+            <button id="btn-import-data" class="btn btn-secondary">コードを読み込んで同期 📥</button>
+          </div>
+        </div>
+      </section>
+      
+    </main>
+  </div>
+
+  <script src="app.js?v=1"></script>
+</body>
+</html>
