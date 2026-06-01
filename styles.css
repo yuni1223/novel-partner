@@ -983,13 +983,14 @@ body {
   .app-container {
     flex-direction: column-reverse;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
   }
 
   .sidebar {
     width: 100%;
-    height: 68px;
-    padding: 0 12px;
+    height: calc(72px + env(safe-area-inset-bottom));
+    padding: 0 12px env(safe-area-inset-bottom) 12px;
     flex-direction: row;
     border-right: none;
     border-top: 1px solid var(--border-glass);
@@ -997,6 +998,7 @@ body {
     justify-content: space-around;
     z-index: 100;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.6);
+    flex-shrink: 0;
   }
 
   /* Hide decorative sidebar widgets on mobile to save vertical space */
@@ -1051,7 +1053,8 @@ body {
   /* Main scrollable body area */
   .main-content {
     padding: 16px 16px 24px 16px;
-    height: calc(100vh - 68px);
+    height: calc(100dvh - 72px - env(safe-area-inset-bottom));
+    flex-grow: 1;
     overflow-y: auto;
   }
 
