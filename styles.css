@@ -974,3 +974,218 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+/* ==========================================================================
+   📱 Mobile Optimization Design System (max-width: 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* Layout Restructure: Bottom Docked Navigation */
+  .app-container {
+    flex-direction: column-reverse;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 68px;
+    padding: 0 12px;
+    flex-direction: row;
+    border-right: none;
+    border-top: 1px solid var(--border-glass);
+    background-color: var(--bg-sidebar);
+    justify-content: space-around;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.6);
+  }
+
+  /* Hide decorative sidebar widgets on mobile to save vertical space */
+  .sidebar-header,
+  .user-level-widget,
+  .streak-mini-widget {
+    display: none !important;
+  }
+
+  .sidebar-menu {
+    flex-direction: row;
+    width: 100%;
+    height: 100%;
+    justify-content: space-around;
+    align-items: center;
+    gap: 0;
+  }
+
+  .menu-item {
+    flex-direction: column;
+    font-size: 10px;
+    gap: 3px;
+    padding: 6px 0;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+    border-radius: 0;
+    border: none;
+    color: var(--text-secondary);
+    transition: none;
+  }
+
+  .menu-item.active {
+    background: transparent;
+    color: var(--primary);
+    border: none;
+    box-shadow: none;
+    text-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
+  }
+
+  .menu-item:hover {
+    padding-left: 0;
+    background: transparent;
+    color: var(--text-primary);
+  }
+
+  .menu-icon {
+    font-size: 18px;
+    margin-bottom: 2px;
+  }
+
+  /* Main scrollable body area */
+  .main-content {
+    padding: 16px 16px 24px 16px;
+    height: calc(100vh - 68px);
+    overflow-y: auto;
+  }
+
+  .panel-header {
+    margin-bottom: 20px;
+  }
+
+  .panel-header h2 {
+    font-size: 22px;
+  }
+
+  .panel-subtitle {
+    font-size: 12px;
+  }
+
+  /* Card and Spacing Adjustments */
+  .card {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  /* Grid Layouts Collapsing */
+  .dashboard-grid,
+  .notebook-container,
+  .editor-view-container {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  /* Streak tracking text scale */
+  .streak-large-number {
+    font-size: 48px;
+  }
+
+  .quick-write-action {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .stats-overview {
+    gap: 12px;
+  }
+
+  .stat-item {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  /* Notebook Form spacing */
+  .template-selector-container {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .template-selector-container select {
+    width: 100%;
+  }
+
+  /* Chat Box Mobile Layout */
+  .chat-container {
+    flex-direction: column;
+    height: calc(100vh - 160px);
+    min-height: 0;
+  }
+
+  .chat-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-glass);
+    padding: 10px 16px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .chat-sidebar h3,
+  .chat-help-box {
+    display: none !important; /* Hide to protect valuable screenspace */
+  }
+
+  .persona-selector-box {
+    flex: 1;
+    margin-bottom: 0;
+  }
+
+  .chat-main {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .chat-history {
+    padding: 12px;
+    gap: 12px;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .chat-bubble {
+    max-width: 90%;
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  .chat-input-area {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  /* Manuscript Editor Spacing */
+  .editor-textarea {
+    height: 250px;
+    font-size: 13.5px;
+    line-height: 1.6;
+    padding: 10px 12px;
+  }
+
+  .editor-actions {
+    justify-content: space-between;
+  }
+
+  .editor-actions .btn {
+    flex: 1;
+    font-size: 13px;
+    padding: 10px 0;
+  }
+
+  .feedback-item {
+    padding: 10px 12px;
+  }
+}
+
